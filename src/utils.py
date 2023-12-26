@@ -1,13 +1,14 @@
 import os
-import torch
-import torch.distributed as dist
 import time
 from collections import OrderedDict
+
+import torch
+import torch.distributed as dist
 
 
 def instantiate_from_config(config):
     import importlib
-    if not "target" in config:
+    if "target" not in config:
         raise KeyError("Expected key `target` to instantiate.")
     module, cls = config["target"].rsplit(".", 1)
     return getattr(importlib.import_module(module, package=None), cls)
@@ -61,7 +62,12 @@ def init_distributed_mode():
     world_size = int(os.environ['WORLD_SIZE'])
     gpu = int(os.environ['LOCAL_RANK'])
     print(rank, world_size, gpu)
-    dist.init_process_group(backend='nccl', init_method='env://', world_size=4, rank=rank)
+    dist.init_process_group(
+        backend='nccl',
+        init_method='env://',
+        world_size=4,
+        rank=rank
+    )
     dist.barrier()
 
 
@@ -93,7 +99,7 @@ def _to_item(item):
 def del_file(path_data):
     for i in os.listdir(path_data):
         file_data = os.path.join(path_data, i)
-        if os.path.isfile(file_data) == True:
+        if os.path.isfile(file_data) is True:
             os.remove(file_data)
         else:
             del_file(file_data)

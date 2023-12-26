@@ -1,54 +1,59 @@
-gpu: '0' # '0' #'0,1,2,3,4,5,6,7'
+# Number of available GPUs
+gpu: '0' # '0,1,2,3,4,5,6,7'
 
 target: src.trainer.Trainer
 name: ade20k_segformer
-### TRAINING PARAMETERS ###
+
+# Training parameters
 total_iter: 10
 max_epoch: 10
 batch_size: 6
 val_batch: 4
 
+# Saving parameters
 ckpt_dir: './experiments/ckpts'
 save_model_interval: 10
 log_interval: 1
 val_interval: 1
 resume_path:  #'experiments/ckpts/ade20k_segformer_1226_1526/saved_models/ade20k_segformer_10.pth'
 
+# Network
 network:
   target: src.archs.segformer.SegformerForSemanticSegmentation
   config:
     target: src.archs.segformer.SegformerConfig
 
-  pretrained: # "pytorch_model.bin"
+  pretrained: "pytorch_model.bin"
 
 dataset:
   target: src.datasets.dataset.ADE20K
   params:
-    data_root: 'data/ADEChallengeData2016'  # 'data/ADEChallengeData2016'
+    data_root: 'data/ADEChallengeData2016'
     subset: 'training'
-#    img_size: 512
 
-  gt_val_data_root: 'data/ADEChallengeData2016'  # 'data/ADEChallengeData2016'
+  val_params:
+    data_root: 'data/ADEChallengeData2016'
+    subset: 'training'
 
+# Dataset augmentations
 augmentations:
   target: src.datasets.dataset.ADE20K_Augmentations
   params:
     image_size: 512
-    scale: 1.1
+    scale: 1.0
 
-### LOSS PARAMETERS ###
+# Loss
 loss:
   ce_coef: 1.0
   ignore_index: 255
 
 
-### OPTIMIZATION PARAMETERS ###
+# Optimizer
 optimizer:
   optim: 'Adam'
   initial_lr_g: 1e-4
   beta: [0.9, 0.999]
-  ############
   # Scheduler
-  milestones: [500000, 650000] #[400000, 800000]
+  milestones: [500000, 650000]  # [400000, 800000]
   gamma: 0.5
 
