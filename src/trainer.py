@@ -1,14 +1,14 @@
-import torch
 import numpy as np
-from sklearn.metrics import accuracy_score
-from tqdm import tqdm
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.metrics import accuracy_score
 # import cfg
 # from tqdm import tqdm
 from torch.utils.data import BatchSampler, DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 from src.losses.loss import Total_loss
 from src.utils import get_world_size, instantiate_from_config
@@ -85,8 +85,12 @@ class Trainer(object):
                     self.log_loss()
 
                 # validation
-                if self.eval and self.rank == 0 and self.global_step % (
-                self.opt.val_interval) == 0 and epoch >= 1:
+                if (
+                    self.eval
+                    and self.rank == 0
+                    and self.global_step % self.opt.val_interval == 0
+                    and epoch >= 1
+                ):
                     # self.log_img(output, hq_img)
                     metrics = self.validation()
                     self.log_metrics(metrics, self.global_step)
@@ -110,26 +114,36 @@ class Trainer(object):
         for step, batch_data in enumerate(pbar):
             image = batch_data['image'].to(self.device)
             mask = batch_data['mask']
-            
+
             with torch.no_grad():
                 logits = self.model(image)
 
             logits = nn.functional.interpolate(
-                logits, size=mask.shape[-2:], mode="bilinear", align_corners=False
+                logits,
+                size=mask.shape[-2:],
+                mode="bilinear",
+                align_corners=False
             )
             logits = F.softmax(logits, dim=1)
             logits = logits.argmax(1).detach().cpu().numpy()
-            
+
             mask = mask.detach().cpu().numpy()
-            pixel_wise_accuracy = accuracy_score(mask.flatten(), logits.flatten())
+            pixel_wise_accuracy = accuracy_score(
+                mask.flatten(),
+                logits.flatten()
+            )
 
             accuracy.append(pixel_wise_accuracy)
-            pbar.set_postfix({"Batch": step, "Accuracy": np.mean(pixel_wise_accuracy)})
+            pbar.set_postfix(
+                {
+                    "Batch": step,
+                    "Accuracy": np.mean(pixel_wise_accuracy)
+                }
+            )
 
         return {
             "accuracy": float(np.mean(accuracy))
         }
-
 
     def train_step(self, image, mask):
         self.model.train()
@@ -215,7 +229,6 @@ class Trainer(object):
                 pin_memory=True
             )
             self.train_sampler = None
-            
         else:
             train_dataset = instantiate_from_config(
                 self.opt.dataset
@@ -274,8 +287,7 @@ class Trainer(object):
                 self.optimizer.state_dict()['param_groups'][0]['lr'],
                 self.global_step
             )
-        
-    
+
     def log_metrics(self, metrics, step):
         if self.tb_writer is not None:
             for metics_name, value in metrics.items():
