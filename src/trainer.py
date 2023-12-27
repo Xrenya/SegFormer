@@ -16,8 +16,6 @@ from .lr_scheduler import MultiStepRestartLR
 from .utils import (UnNormalize, create_ckpt_dir, del_file,
                     fix_model_state_dict, makedirs, reduce_loss_dict)
 
-# reduce_value, to_items
-
 
 class Trainer(object):
 
@@ -109,9 +107,12 @@ class Trainer(object):
             logits = F.softmax(logits, dim=1)
             logits = logits.argmax(1).detach().cpu().numpy()
 
-            mask = mask.detach().cpu().numpy()
-            pixel_wise_accuracy = accuracy_score(mask.flatten(),
-                                                 logits.flatten())
+            mask = mask.detach().cpu().numpy().flatten()
+            logits = logits.flatten()
+            ignore_mask = mask != 255
+            pixel_wise_accuracy = accuracy_score(
+                mask[ignore_mask], logits[ignore_mask]
+            )
 
             accuracy.append(pixel_wise_accuracy)
             pbar.set_postfix({
