@@ -1,14 +1,14 @@
 import os
 from pathlib import Path
-import torch
-from torch.utils.data import Dataset
-import numpy as np
-import cv2
+
 import albumentations as A
+import cv2
 from albumentations.pytorch import ToTensorV2
+from torch.utils.data import Dataset
 
 
 class BaseDataset(Dataset):
+
     def __init__(self, transform=None):
         self.transform = transform
 
@@ -27,15 +27,9 @@ class BaseDataset(Dataset):
         mask[background] = 255
 
         if self.transform is not None:
-            aug = self.transform(
-                image=image,
-                mask=mask
-            )
+            aug = self.transform(image=image, mask=mask)
         else:
-            aug = {
-                "image": image,
-                "mask": mask
-            }
+            aug = {"image": image, "mask": mask}
 
         return aug
 
@@ -105,6 +99,7 @@ class ADE20K(BaseDataset):
                [71, 0, 255], [122, 0, 255], [0, 255, 184], [0, 92, 255],
                [184, 255, 0], [0, 133, 255], [255, 214, 0], [25, 194, 194],
                [102, 255, 0], [92, 0, 255]]
+
     def __init__(self, data_root, subset="validation", transform=None):
         super().__init__(transform=transform)
         self.images = []
@@ -119,46 +114,41 @@ class ADE20K(BaseDataset):
         mask_path = os.path.join(anno_path, subset)
         for p in Path(image_path).glob("**/*.jpg"):
             self.images.append(str(p))
-            self.masks.append(os.path.join(mask_path, p.name.replace(".jpg", ".png")))
+            self.masks.append(
+                os.path.join(mask_path, p.name.replace(".jpg", ".png")))
 
 
 class ADE20K_Augmentations:
+
     def __init__(self, image_size: int = 512, scale: float = 1.1):
         # Train transformation
-        self.train_transformation = A.Compose(
-            [
-                A.LongestMaxSize(max_size=int(image_size * scale)),
-                A.PadIfNeeded(
-                    min_height=int(int(image_size * scale)),
-                    min_width=int(int(image_size * scale)),
-                    border_mode=cv2.BORDER_CONSTANT
-                ),
-                A.RandomCrop(width=image_size, height=image_size),
-                A.ColorJitter(brightness=0.6, contrast=0.6, saturation=0.6, hue=0.6, p=0.4),
-                A.OneOf(
-                    [
-                        A.ShiftScaleRotate(rotate_limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT)
-                    ], p=1.0
-                ),
-                A.HorizontalFlip(p=0.5),
-                A.Blur(p=0.1),
-                A.CLAHE(p=0.1),
-                A.Posterize(p=0.1),
-                A.ToGray(p=0.1),
-                A.ChannelShuffle(p=0.05),
-                A.Normalize(),
-                ToTensorV2(),
-            ]
-        )
+        self.train_transformation = A.Compose([
+            A.LongestMaxSize(max_size=int(image_size * scale)),
+            A.PadIfNeeded(min_height=int(int(image_size * scale)),
+                          min_width=int(int(image_size * scale)),
+                          border_mode=cv2.BORDER_CONSTANT),
+            A.RandomCrop(width=image_size, height=image_size),
+            A.ColorJitter(brightness=0.6,
+                          contrast=0.6,
+                          saturation=0.6,
+                          hue=0.6,
+                          p=0.4),
+            A.OneOf([
+                A.ShiftScaleRotate(
+                    rotate_limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT)
+            ],
+                    p=1.0),
+            A.HorizontalFlip(p=0.5),
+            A.Blur(p=0.1),
+            A.Normalize(),
+            ToTensorV2(),
+        ])
         # Test/Eval transformation
-        self.test_transformation = A.Compose(
-            [
-                A.LongestMaxSize(max_size=image_size),
-                A.PadIfNeeded(
-                    min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT
-                ),
-                A.Normalize(),
-                ToTensorV2(),
-            ]
-        )
-
+        self.test_transformation = A.Compose([
+            A.LongestMaxSize(max_size=image_size),
+            A.PadIfNeeded(min_height=image_size,
+                          min_width=image_size,
+                          border_mode=cv2.BORDER_CONSTANT),
+            A.Normalize(),
+            ToTensorV2(),
+        ])
