@@ -1,7 +1,7 @@
 import argparse
 import os
 
-os.system('pip install -r requirement.txt')
+os.system('pip install -r requirements.txt')
 os.system('python -m torch.utils.collect_env')
 
 parser = argparse.ArgumentParser(
@@ -13,7 +13,7 @@ parser.add_argument(
     '-c',
     '--config',
     type=str,
-    default="options/segformer.yaml",
+    default="configs/segformer.yaml",
     help='config path'
 )
 args, unparsed = parser.parse_known_args()
