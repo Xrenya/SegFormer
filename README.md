@@ -36,3 +36,7 @@ Checks codebase for errors, styling issues and complexity:
 ```python
 flake8 *python file*
 ```
+
+## Test Env
+The code was tested in Linux enviroment using 1 GPU.
+The training enviroment does support multi-gpu training (8 GPUs), but was not test.
