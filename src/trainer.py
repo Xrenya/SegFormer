@@ -3,22 +3,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import accuracy_score
-# import cfg
-# from tqdm import tqdm
 from torch.utils.data import BatchSampler, DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from src.losses.loss import Total_loss
 from src.utils import get_world_size, instantiate_from_config
 
 from .lr_scheduler import MultiStepRestartLR
-from .utils import (create_ckpt_dir, del_file, fix_model_state_dict, makedirs,
-                    reduce_loss_dict)
-
-# from torchvision.utils import make_grid, save_image
-
+from .utils import (UnNormalize, create_ckpt_dir, del_file,
+                    fix_model_state_dict, makedirs, reduce_loss_dict)
 
 # reduce_value, to_items
 
@@ -42,6 +38,9 @@ class Trainer(object):
         self.optimizer, self.lr_scheduler = self.init_optimizer()
         # define loss
         self.loss_fn = Total_loss(self.opt.loss).to(self.device)
+        # unnormalize image
+        self.un_norm = UnNormalize(mean=(0.485, 0.456, 0.406),
+                                   std=(0.229, 0.224, 0.225))
 
         if self.opt.resume_path:
             self.resume_model()
@@ -49,14 +48,9 @@ class Trainer(object):
         self.loss_dict = {}
         self.tb_writer = None
         if self.rank == 0:
-            (
-                self.save_dir,
-                self.tensorboard_dir,
-                self.temp_val_dir
-            ) = create_ckpt_dir(
-                self.opt.ckpt_dir,
-                self.opt.name
-            )
+            (self.save_dir, self.tensorboard_dir,
+             self.temp_val_dir) = create_ckpt_dir(self.opt.ckpt_dir,
+                                                  self.opt.name)
             makedirs(self.opt.train_url)
             del_file(self.opt.train_url)
             self.tb_writer = SummaryWriter(self.opt.train_url)
@@ -79,28 +73,22 @@ class Trainer(object):
 
                 # log the loss and img
                 if self.rank == 0 and self.global_step % (
-                    self.opt.log_interval
-                ) == 0:
+                        self.opt.log_interval) == 0:
                     self.report(epoch)
                     self.log_loss()
 
                 # validation
-                if (
-                    self.eval
-                    and self.rank == 0
-                    and self.global_step % self.opt.val_interval == 0
-                    and epoch >= 1
-                ):
-                    # self.log_img(output, hq_img)
+                if (self.eval and self.rank == 0
+                        and self.global_step % self.opt.val_interval == 0
+                        and epoch >= 1):
+                    self.log_img(image, output, mask, "val")
                     metrics = self.validation()
                     self.log_metrics(metrics, self.global_step)
 
                 # save the model
-                if (
-                    self.rank == 0
-                    and self.global_step % self.opt.save_model_interval == 0
-                    and epoch >= 1
-                ):
+                if (self.rank == 0 and
+                        self.global_step % self.opt.save_model_interval == 0
+                        and epoch >= 1):
                     self.save_model(epoch, self.global_step)
 
             if self.global_step > self.opt.total_iter:
@@ -118,32 +106,20 @@ class Trainer(object):
             with torch.no_grad():
                 logits = self.model(image)
 
-            logits = nn.functional.interpolate(
-                logits,
-                size=mask.shape[-2:],
-                mode="bilinear",
-                align_corners=False
-            )
             logits = F.softmax(logits, dim=1)
             logits = logits.argmax(1).detach().cpu().numpy()
 
             mask = mask.detach().cpu().numpy()
-            pixel_wise_accuracy = accuracy_score(
-                mask.flatten(),
-                logits.flatten()
-            )
+            pixel_wise_accuracy = accuracy_score(mask.flatten(),
+                                                 logits.flatten())
 
             accuracy.append(pixel_wise_accuracy)
-            pbar.set_postfix(
-                {
-                    "Batch": step,
-                    "Accuracy": np.mean(pixel_wise_accuracy)
-                }
-            )
+            pbar.set_postfix({
+                "Batch": step,
+                "Accuracy": np.mean(pixel_wise_accuracy)
+            })
 
-        return {
-            "accuracy": float(np.mean(accuracy))
-        }
+        return {"accuracy": float(np.mean(accuracy))}
 
     def train_step(self, image, mask):
         self.model.train()
@@ -162,50 +138,59 @@ class Trainer(object):
         self.loss_dict['loss'] = loss
         self.loss_dict.update(loss_dict)
 
-    # def log_img(self, output, gt, name='train'):
-    #     if self.tb_writer is not None:
-    #         dis_row = 4  # <= batchsize
-    #         images = torch.cat(
-    #           (output[0:dis_row, ...], gt[0:dis_row, ...]),
-    #          0)
-    #         images = images * 0.5 + 0.5
-    #         grid = make_grid(images, nrow=dis_row, padding=10)
-    #         self.tb_writer.add_image(name, grid, self.global_step)
+    def log_img(self, image, output, gt, name='train', samples=2):
+        if self.tb_writer is not None:
+            height, width = output.shape[-2:]
+            samples = min(samples, len(output))
+            output = output[0:samples, ...].detach().cpu()
+            output = F.softmax(output, dim=1).argmax(1).numpy()
+            gt = gt[0:samples, ...].detach().cpu().numpy()
+            image = image[0:samples, ...].detach().cpu()
+            for img in image:
+                img = self.un_norm(img)
+
+            segmentation_mask_preds = np.zeros((samples, height, width, 3))
+            segmentation_mask_gt = np.zeros((samples, height, width, 3))
+            for label, color in enumerate(self.palette):
+                mask_pred = output == label
+                mask_gt = gt == label
+                segmentation_mask_preds[mask_pred] = [c / 255. for c in color]
+                segmentation_mask_gt[mask_gt] = [c / 255. for c in color]
+
+            images = torch.cat([
+                image,
+                torch.tensor(segmentation_mask_gt).permute(0, 3, 1, 2),
+                torch.tensor(segmentation_mask_preds).permute(0, 3, 1, 2)
+            ], 3)
+            grid = make_grid(images, nrow=1, padding=10)
+            self.tb_writer.add_image(name, grid, self.global_step)
 
     def init_net(self, model):
         if self.rank == 0:
             print(f"Loading the net in GPU:{self.rank}")
         if self.opt.network.pretrained:
-            checkpoint = torch.load(
-                self.opt.network.pretrained,
-                map_location=self.device
-            )
+            checkpoint = torch.load(self.opt.network.pretrained,
+                                    map_location=self.device)
             model.load_state_dict(checkpoint)
 
         if get_world_size() < 2:
             model = nn.parallel.DataParallel(model)
         else:
-            model = nn.SyncBatchNorm.convert_sync_batchnorm(
-                model
-            ).to(self.device)
+            model = nn.SyncBatchNorm.convert_sync_batchnorm(model).to(
+                self.device)
             model = nn.parallel.DistributedDataParallel(
-                model,
-                device_ids=[self.rank],
-                find_unused_parameters=False
-            )  # False=True,
+                model, device_ids=[self.rank],
+                find_unused_parameters=False)  # False=True,
         return model
 
     def init_optimizer(self):
-        optimizer = torch.optim.Adam(
-            self.model.parameters(),
-            lr=self.opt.optimizer.initial_lr_g,
-            betas=self.opt.optimizer.beta
-            )
+        optimizer = torch.optim.Adam(self.model.parameters(),
+                                     lr=self.opt.optimizer.initial_lr_g,
+                                     betas=self.opt.optimizer.beta)
         lr_scheduler = MultiStepRestartLR(
             optimizer,
             milestones=self.opt.optimizer.milestones,
-            gamma=self.opt.optimizer.gamma
-        )
+            gamma=self.opt.optimizer.gamma)
         return optimizer, lr_scheduler
 
     def make_data_loader(self):
@@ -220,82 +205,60 @@ class Trainer(object):
         if get_world_size() < 2:
             train_dataset = instantiate_from_config(self.opt.dataset)(
                 **self.opt.dataset.params,
-                transform=self.augmentations.train_transformation
-            )
-            train_loader = DataLoader(
-                dataset=train_dataset,
-                batch_size=self.opt.batch_size,
-                shuffle=True,
-                pin_memory=True
-            )
+                transform=self.augmentations.train_transformation)
+            train_loader = DataLoader(dataset=train_dataset,
+                                      batch_size=self.opt.batch_size,
+                                      shuffle=True,
+                                      pin_memory=True)
             self.train_sampler = None
         else:
-            train_dataset = instantiate_from_config(
-                self.opt.dataset
-            )(
+            train_dataset = instantiate_from_config(self.opt.dataset)(
                 **self.opt.dataset.params,
-                transform=self.augmentations.train_transformation
-            )
+                transform=self.augmentations.train_transformation)
             self.train_sampler = DistributedSampler(train_dataset)
-            train_batch_sampler = BatchSampler(
-                self.train_sampler,
-                self.opt.batch_size,
-                drop_last=True
-            )
-            train_loader = DataLoader(
-                train_dataset,
-                batch_sampler=train_batch_sampler,
-                shuffle=False,
-                num_workers=8,
-                pin_memory=True
-            )
+            train_batch_sampler = BatchSampler(self.train_sampler,
+                                               self.opt.batch_size,
+                                               drop_last=True)
+            train_loader = DataLoader(train_dataset,
+                                      batch_sampler=train_batch_sampler,
+                                      shuffle=False,
+                                      num_workers=8,
+                                      pin_memory=True)
 
         if "val_params" in self.opt.dataset:
             eval_dataset = instantiate_from_config(self.opt.dataset)(
                 **self.opt.dataset.val_params,
-                transform=self.augmentations.test_transformation
-            )
-            eval_loader = DataLoader(
-                dataset=eval_dataset,
-                batch_size=self.opt.batch_size,
-                shuffle=False,
-                pin_memory=True
-            )
+                transform=self.augmentations.test_transformation)
+            eval_loader = DataLoader(dataset=eval_dataset,
+                                     batch_size=self.opt.batch_size,
+                                     shuffle=False,
+                                     pin_memory=True)
             return_dataloader["eval"] = eval_loader
             self.eval = True
 
         return_dataloader["train"] = train_loader
 
+        self.palette = train_dataset.PALETTE
+
         return return_dataloader
 
     def report(self, epoch):
-        print(
-            f'[STEP: {self.global_step:>6} \
+        print(f'[STEP: {self.global_step:>6} \
             / EPOCH: {epoch:>3} \
-            | Loss: {self.loss_dict["loss"]:.4f}'
-        )
+            | Loss: {self.loss_dict["loss"]:.4f}')
 
     def log_loss(self):
         if self.tb_writer is not None:
-            self.tb_writer.add_scalars(
-                'loss',
-                self.log_dict,
-                self.global_step
-            )
+            self.tb_writer.add_scalars('loss', self.log_dict, self.global_step)
             self.tb_writer.add_scalar(
                 'LR/lr',
                 self.optimizer.state_dict()['param_groups'][0]['lr'],
-                self.global_step
-            )
+                self.global_step)
 
     def log_metrics(self, metrics, step):
         if self.tb_writer is not None:
             for metics_name, value in metrics.items():
-                self.tb_writer.add_scalar(
-                    metics_name,
-                    value,
-                    step
-                )
+                self.tb_writer.add_scalar(metics_name, value, step)
 
     def save_model(self, epoch, note=''):
         print('Saving the model...')
@@ -306,10 +269,7 @@ class Trainer(object):
             'epoch': epoch,
             'global_step': self.global_step
         }
-        torch.save(
-            save_files,
-            f'{self.save_dir}/{self.opt.name}_{note}.pth'
-        )
+        torch.save(save_files, f'{self.save_dir}/{self.opt.name}_{note}.pth')
 
     def resume_model(self):
         print("Loading the trained params and the state of optimizer...")
@@ -319,11 +279,9 @@ class Trainer(object):
         self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
         self.flag_epoch = checkpoint['epoch'] + 1
         self.global_step = checkpoint['global_step']
-        print(
-            f"Resuming from epoch: \
+        print(f"Resuming from epoch: \
             {self.flag_epoch}, \
-            global step: {self.global_step}"
-        )
+            global step: {self.global_step}")
 
     def load_model(self):
         checkpoint = torch.load(self.opt.model_path, map_location=self.device)
