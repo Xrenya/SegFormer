@@ -15,7 +15,7 @@ Download dataset [ADE20k](http://data.csail.mit.edu/places/ADEchallenge/ADEChall
 ```python
 python train.py --config './configs/segformer.yaml' --train_url './experiments/ckpts/tensorboard'
 ```
-`--config`: configuration file (training, dataset, model)
+`--config`: configuration file (training, dataset, model)  
 `--train_url`: directory to save tensoboard outputs
 
 or:
