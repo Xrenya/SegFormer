@@ -135,7 +135,7 @@ class ADE20K_Augmentations:
                           p=0.4),
             A.OneOf([
                 A.ShiftScaleRotate(
-                    rotate_limit=20, p=0.5, border_mode=cv2.BORDER_CONSTANT)
+                    rotate_limit=5, p=0.3, border_mode=cv2.BORDER_CONSTANT)
             ],
                     p=1.0),
             A.HorizontalFlip(p=0.5),
