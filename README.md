@@ -18,7 +18,7 @@ tensorboard --logdir experiments/tensorboard
 ## Test
 Run pytest:
 ```python
-pytest 
+pytest .
 ```
 
 ## Code Formatting
