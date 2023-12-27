@@ -25,6 +25,9 @@ python run.py
 
 Multi-GPU training is support, the number of available GPUs should be change in cofiguration file: `./configs/segformer.yaml`
 
+## Docker
+Dockerfile: Dockerfile
+- [ ] Test Dockerfile
 
 ## Logging
 Launch tensorboard after training:
