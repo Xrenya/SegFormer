@@ -36,6 +36,11 @@ python inference.py \
   --ext 'jpg'
 ```
 
+output file in color:  
+
+| Image             |  Mask |
+:-------------------------:|:-------------------------:
+<img src="https://github.com/Xrenya/SegFormer/assets/51479797/6ba8d8a4-67c5-4da9-83f2-76ddc6705fb7" alt="drawing" style="width:512px;height:512px;"/> | <img src="https://github.com/Xrenya/SegFormer/assets/51479797/7e8f1701-b888-42b8-94a5-5c1ed57c04f2" alt="drawing" style="width:512px;height:512px;"/> 
 
 ## Docker
 Dockerfile: Dockerfile
