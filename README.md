@@ -11,7 +11,7 @@ tensorboard --logdir experiments/tensorboard
 1. Leaning rate
 2. Metrics (pixel-wise accuracy)
 3. Loss
-4. Image
+4. Image (from left to right: image, gt_mask, pred_mask)
 
 ![image](https://github.com/Xrenya/SegFormer/assets/51479797/08460bef-08d8-4765-baab-27373c262eb8)
 
