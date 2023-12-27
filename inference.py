@@ -67,7 +67,7 @@ if __name__ == '__main__':
             min_height=args.image_size,
             min_width=args.image_size,
             border_mode=cv2.BORDER_CONSTANT,
-            value=255,
+            value=0,
             mask_value=255,
         ),
         A.Normalize(),
