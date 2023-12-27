@@ -124,9 +124,13 @@ class ADE20K_Augmentations:
         # Train transformation
         self.train_transformation = A.Compose([
             A.LongestMaxSize(max_size=int(image_size * scale)),
-            A.PadIfNeeded(min_height=int(int(image_size * scale)),
-                          min_width=int(int(image_size * scale)),
-                          border_mode=cv2.BORDER_CONSTANT),
+            A.PadIfNeeded(
+                min_height=int(int(image_size * scale)),
+                min_width=int(int(image_size * scale)),
+                border_mode=cv2.BORDER_CONSTANT,
+                cval=255,
+                cval_mask=255,
+            ),
             A.RandomCrop(width=image_size, height=image_size),
             A.ColorJitter(brightness=0.6,
                           contrast=0.6,
@@ -135,9 +139,14 @@ class ADE20K_Augmentations:
                           p=0.4),
             A.OneOf([
                 A.ShiftScaleRotate(
-                    rotate_limit=5, p=0.3, border_mode=cv2.BORDER_CONSTANT)
+                    rotate_limit=5,
+                    p=0.3,
+                    border_mode=cv2.BORDER_CONSTANT,
+                    cval=255,
+                    cval_mask=255,
+                )
             ],
-                    p=1.0),
+                    p=0.2),
             A.HorizontalFlip(p=0.5),
             A.Blur(p=0.1),
             A.Normalize(),
@@ -146,9 +155,13 @@ class ADE20K_Augmentations:
         # Test/Eval transformation
         self.test_transformation = A.Compose([
             A.LongestMaxSize(max_size=image_size),
-            A.PadIfNeeded(min_height=image_size,
-                          min_width=image_size,
-                          border_mode=cv2.BORDER_CONSTANT),
+            A.PadIfNeeded(
+                min_height=image_size,
+                min_width=image_size,
+                border_mode=cv2.BORDER_CONSTANT,
+                cval=255,
+                cval_mask=255,
+            ),
             A.Normalize(),
             ToTensorV2(),
         ])
