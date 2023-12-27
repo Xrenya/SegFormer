@@ -23,7 +23,7 @@ network:
   config:
     target: src.archs.segformer.SegformerConfig
 
-  pretrained: "pytorch_model.bin"
+  pretrained: "experiments/pretrained/pytorch_model.bin"
 
 dataset:
   target: src.datasets.dataset.ADE20K
@@ -56,4 +56,3 @@ optimizer:
   # Scheduler
   milestones: [500000, 650000]  # [400000, 800000]
   gamma: 0.5
-
