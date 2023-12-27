@@ -23,7 +23,7 @@ or:
 python run.py
 ```
 
-Multi-GPU training is support, the number of available GPUs should be change in cofiguration file: `./configs/segformer.yaml`
+Multi-GPU training is supported, the number of available GPUs should be change in cofiguration file: `./configs/segformer.yaml`
 
 ## Inference:
 ```python
