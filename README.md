@@ -29,6 +29,10 @@ Multi-GPU training is support, the number of available GPUs should be change in 
 Dockerfile: Dockerfile
 - [ ] Test Dockerfile
 
+```python
+docker compose up
+```
+
 ## Logging
 Launch tensorboard after training:
 ```python
