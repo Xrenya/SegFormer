@@ -62,12 +62,10 @@ def init_distributed_mode():
     world_size = int(os.environ['WORLD_SIZE'])
     gpu = int(os.environ['LOCAL_RANK'])
     print(rank, world_size, gpu)
-    dist.init_process_group(
-        backend='nccl',
-        init_method='env://',
-        world_size=4,
-        rank=rank
-    )
+    dist.init_process_group(backend='nccl',
+                            init_method='env://',
+                            world_size=4,
+                            rank=rank)
     dist.barrier()
 
 
@@ -113,3 +111,22 @@ def fix_model_state_dict(state_dict, del_str='module.'):
             name = name[len(del_str):]  # remove 'module.' of dataparallel
         new_state_dict[name] = v
     return new_state_dict
+
+
+class UnNormalize(object):
+
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, tensor):
+        """
+        Args:
+            tensor (Tensor): Tensor image of size (C, H, W) to be normalized.
+        Returns:
+            Tensor: Normalized image.
+        """
+        for t, m, s in zip(tensor, self.mean, self.std):
+            t.mul_(s).add_(m)
+            # The normalize code -> t.sub_(m).div_(s)
+        return tensor
