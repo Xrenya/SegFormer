@@ -1,5 +1,6 @@
 omegaconf
-isort
-flake8
 albumentations
 tensorboard
+yapf
+isort
+flake8
