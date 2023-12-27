@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('-o',
                         '--output_path',
                         type=str,
-                        default="./output",
+                        default="output",
                         help='Output folder')
     parser.add_argument('--color',
                         type=bool,
@@ -53,7 +53,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     output_path = args.output_path
-
+    os.makedirs(output_path, exist_ok=True)
+    
     opt = OmegaConf.load(args.config)
     config = instantiate_from_config(opt.network.config)()
     model = instantiate_from_config(opt.network)(config).to(device)
@@ -62,14 +63,7 @@ if __name__ == '__main__':
     model.load_state_dict(weight)
 
     augmentations = A.Compose([
-        A.LongestMaxSize(max_size=args.image_size),
-        A.PadIfNeeded(
-            min_height=args.image_size,
-            min_width=args.image_size,
-            border_mode=cv2.BORDER_CONSTANT,
-            value=0,
-            mask_value=255,
-        ),
+        A.Resize(args.image_size, args.image_size),
         A.Normalize(),
         ToTensorV2(),
     ])
@@ -97,3 +91,4 @@ if __name__ == '__main__':
 
         filename = os.path.join(output_path, image_path.name)
         cv2.imwrite(filename, segmentation_mask)
+        print(filename)
