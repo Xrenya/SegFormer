@@ -25,6 +25,18 @@ python run.py
 
 Multi-GPU training is support, the number of available GPUs should be change in cofiguration file: `./configs/segformer.yaml`
 
+## Inference:
+```python
+python inference.py \
+  --config './configs/segformer.yaml' \
+  --weight './experiments/pretrained/pytorch_model.bin' \
+  --input_path './data/ADEChallengeData2016/images/training' \
+  --output_path "./output" \
+  --image_size 512 \
+  --ext 'jpg'
+```
+
+
 ## Docker
 Dockerfile: Dockerfile
 - [ ] Test Dockerfile
