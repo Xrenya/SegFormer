@@ -6,3 +6,5 @@ isort
 flake8
 scikit-learn
 numpy
+pathlib
+tqdm
