@@ -15,6 +15,12 @@ tensorboard --logdir experiments/tensorboard
 
 ![image](https://github.com/Xrenya/SegFormer/assets/51479797/08460bef-08d8-4765-baab-27373c262eb8)
 
+## Test
+Run pytest:
+```python
+pytest 
+```
+
 ## Code Formatting
 Sorting imports:
 ```python
