@@ -3,6 +3,11 @@ SegFormer
 
 
 ## Logging
+Launch tensorboard after training:
+```python
+tensorboard --logdir experiments/tensorboard
+```
+
 1. Leaning rate
 2. Metrics (pixel-wise accuracy)
 3. Loss
