@@ -9,6 +9,38 @@ from albumentations.pytorch import ToTensorV2
 
 
 class BaseDataset(Dataset):
+    def __init__(self, transform=None):
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, item):
+        image_path = self.images[item]
+        image = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        mask_path = self.masks[item]
+        mask = cv2.imread(mask_path)[..., 0]
+        background = mask == 0
+        mask -= 1
+        mask[background] = 255
+
+        if self.transform is not None:
+            aug = self.transform(
+                image=image,
+                mask=mask
+            )
+        else:
+            aug = {
+                "image": image,
+                "mask": mask
+            }
+
+        return aug
+
+
+class ADE20K(BaseDataset):
     CLASSES = (
         'wall', 'building', 'sky', 'floor', 'tree', 'ceiling', 'road', 'bed ',
         'windowpane', 'grass', 'cabinet', 'sidewalk', 'person', 'earth',
@@ -73,39 +105,6 @@ class BaseDataset(Dataset):
                [71, 0, 255], [122, 0, 255], [0, 255, 184], [0, 92, 255],
                [184, 255, 0], [0, 133, 255], [255, 214, 0], [25, 194, 194],
                [102, 255, 0], [92, 0, 255]]
-
-    def __init__(self, transform=None):
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.images)
-
-    def __getitem__(self, item):
-        image_path = self.images[item]
-        image = cv2.imread(image_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-        mask_path = self.masks[item]
-        mask = cv2.imread(mask_path)[..., 0]
-        background = mask == 0
-        mask -= 1
-        mask[background] = 255
-
-        if self.transform is not None:
-            aug = self.transform(
-                image=image,
-                mask=mask
-            )
-        else:
-            aug = {
-                "image": image,
-                "mask": mask
-            }
-
-        return aug
-
-
-class ADE20K(BaseDataset):
     def __init__(self, data_root, subset="validation", transform=None):
         super().__init__(transform=transform)
         self.images = []
