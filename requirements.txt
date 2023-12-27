@@ -4,3 +4,4 @@ tensorboard
 yapf
 isort
 flake8
+scikit-learn
