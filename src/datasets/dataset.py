@@ -142,8 +142,8 @@ class ADE20K_Augmentations:
                     rotate_limit=5,
                     p=0.3,
                     border_mode=cv2.BORDER_CONSTANT,
-                    cval=0,
-                    cval_mask=255,
+                    value=0,
+                    mask_value=255,
                 )
             ],
                     p=0.2),
